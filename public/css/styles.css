@@ -1,6 +1,39 @@
-/******* Change Box Model ***************/
-*,
-*:before,
-*:after {
-  box-sizing: border-box;
+
+#top-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+ 
+.siteName {
+  font-size: 2rem;
+}
+#top-header a {
+  text-decoration: none;
+  color: rgb(3, 67, 5);
+}
+/* nav */
+nav {
+  width: 100%;
+}
+ 
+nav ul {
+  display: flex;
+  flex-direction: row;
+  background-color: rgb(1, 59, 3);
+  padding: 0;
+  margin: 0;
+  justify-content: space-around;
+}
+ 
+nav ul li {
+  list-style: none;
+  color: white;
+  padding: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+ 
+nav ul li:hover {
+  background-color: #354249;
 }
