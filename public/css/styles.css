@@ -1,4 +1,38 @@
+/******* Change Box Model ***************/
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
+/* Bg General*/
+@media only screen and (min-width: 520px) {
+  body {
+      background-image: url(/images//site/small_check.jpg);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+  }
+}
+body {
+  font-family: Arial, sans-serif;
+  background-color: white;
+  margin: 0;
+  padding: 0;
+}
 
+@media only screen and (min-width: 520px) {
+  #wrapper {
+      width: 75vw;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+      border-radius: 10px;
+      border: 5px solid rgb(59, 1, 1);
+      background-color: #f4f4f4;
+      margin-top: 1%;
+  }
+}
 #top-header {
   display: flex;
   justify-content: space-between;
@@ -10,9 +44,21 @@
 }
 #top-header a {
   text-decoration: none;
-  color: rgb(3, 67, 5);
+  color: rgb(189, 0, 0);
 }
 /* nav */
+@media only screen and (min-width: 520px) {
+  #message {
+      max-width: 40%;
+  }
+}
+#message{
+  margin-top: 30px;
+  color: #da4848;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  font-size: 20px;
+}
 nav {
   width: 100%;
 }
@@ -20,7 +66,7 @@ nav {
 nav ul {
   display: flex;
   flex-direction: row;
-  background-color: rgb(1, 59, 3);
+  background-color: rgb(59, 1, 1);
   padding: 0;
   margin: 0;
   justify-content: space-around;
@@ -28,12 +74,100 @@ nav ul {
  
 nav ul li {
   list-style: none;
-  color: white;
+  color: rgb(255, 255, 255);
   padding: 10px;
   font-size: 20px;
   cursor: pointer;
 }
  
 nav ul li:hover {
-  background-color: #354249;
+  background-color: #493535;
 }
+
+#hero-image{
+  background-image: url(/images/vehicles/delorean-tn.jpg);
+    background-position: center;
+    background-repeat: no-repeat;
+    margin: auto;
+    max-width: 80%;
+    height: auto;
+    height: 255px;
+    background-image: url(/images/vehicles/delorean.jpg);
+}
+
+button{
+  height: 50px;
+  color: #000000;
+  background-color: rgb(255, 0, 60);  
+  border-color: rgb(158, 158, 158);
+  border-radius: 3%;
+}
+
+main{
+  padding: 3%;
+}
+@media only screen and (min-width: 520px) {
+  #information {
+      display: grid;
+      grid-template-columns: 50% 50%;
+  }
+}
+#information{
+  margin-top: 1%;
+}
+@media only screen and (min-width: 520px) {
+  #upgrades {
+      order: 1;
+  }
+}
+@media only screen and (min-width: 520px) {
+  #reviews {
+      order: 2;
+  }
+}
+#information section {
+
+  padding: 10px;
+}
+
+#imagescontainer {
+margin-top: 15px;
+    display: grid;
+    grid-template-columns: 50% 50%;
+    grid-gap: 10px;
+    place-items: center;
+}
+
+@media only screen and (min-width: 520px) {
+  .backgroundcolor {
+      margin-top: 20px;
+      width: 180px;
+      height: 110px;
+  }
+}
+.backgroundcolor {
+  margin-top: 20px;
+  background-color: #da4848;
+  width: 160px;
+  height: 110px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+#upgrades section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+#information ul {
+  line-height: 2rem;
+}
+
+footer {
+  text-align: center;
+  padding: 10px 0;
+  background-color: rgb(59, 1, 1);
+  color: white;
+} 
