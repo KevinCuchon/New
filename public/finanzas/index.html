@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1115">
+  <title>Finanzas</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <button class="icon-btn" id="prev" aria-label="Mes anterior">‹</button>
+      <h1 id="month"></h1>
+      <button class="icon-btn" id="next" aria-label="Mes siguiente">›</button>
+      <button class="icon-btn" id="open-settings" aria-label="Ajustes">⚙</button>
+    </header>
+
+    <section class="hero">
+      <p class="label">Balance del mes</p>
+      <p class="balance" id="balance">$0</p>
+      <p class="sub"><span class="in" id="income">+0</span> · <span class="out" id="expense">−0</span></p>
+      <div class="budget" id="budget" hidden>
+        <div class="bar"><span id="budget-fill"></span></div>
+        <p class="sub" id="budget-text"></p>
+      </div>
+    </section>
+
+    <form class="quick" id="quick" autocomplete="off">
+      <div class="row">
+        <input id="entry" type="text" inputmode="text" enterkeyhint="done"
+               placeholder="45 súper   ·   +1500 sueldo" aria-label="Nuevo movimiento">
+        <label class="date">
+          <span id="date-text">Hoy</span>
+          <input id="date" type="date" aria-label="Fecha">
+        </label>
+        <button class="add" type="submit" aria-label="Guardar">+</button>
+      </div>
+      <div class="chips" id="chips" role="radiogroup" aria-label="Categoría"></div>
+    </form>
+
+    <section id="cats-section" hidden>
+      <h2>En qué se va</h2>
+      <ul class="cats" id="cats"></ul>
+    </section>
+
+    <section>
+      <h2>Movimientos</h2>
+      <ul class="list" id="list"></ul>
+      <p class="empty" id="empty">Escribe un monto y pulsa Enter. Usa <b>+</b> para ingresos.</p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden>
+    <span id="toast-text"></span>
+    <button id="toast-undo" type="button">Deshacer</button>
+  </div>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings">
+      <h2>Ajustes</h2>
+      <label>Presupuesto mensual de gastos
+        <input id="set-budget" type="number" min="0" step="any" inputmode="decimal" placeholder="Ej. 800">
+      </label>
+      <label>Moneda
+        <select id="set-currency">
+          <option>USD</option><option>EUR</option><option>MXN</option><option>COP</option>
+          <option>ARS</option><option>CLP</option><option>PEN</option><option>GTQ</option>
+          <option>DOP</option><option>CRC</option><option>BOB</option><option>UYU</option>
+        </select>
+      </label>
+      <div class="actions">
+        <button type="button" id="export-csv">Exportar CSV</button>
+        <button type="button" id="export-json">Copia de seguridad</button>
+        <button type="button" id="import-json">Restaurar copia</button>
+        <button type="button" id="wipe" class="danger">Borrar todo</button>
+      </div>
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+      <button class="primary" value="close">Listo</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

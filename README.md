@@ -45,3 +45,18 @@ When you installed Git and cloned the remote repository in week 1, you should ha
 1. Go to http://localhost:5500 in a browser tab. Nothing should be visible as the server has not been setup to repond to that route.
 2. Add "/filename.html" to the end of the URL (replacing filename with the name of the file you moved to the public folder).
 3. You should see that page in the browser.
+
+## Finanzas (app minimalista)
+
+App para registrar gastos e ingresos en segundos. Vive en `public/finanzas/`.
+
+- **Abrir:** con el servidor corriendo (`pnpm run dev`) entra a http://localhost:5500/finanzas/ — o abre `public/finanzas/index.html` directamente en el navegador.
+- **Registrar:** escribe el monto y una palabra, y pulsa Enter.
+  - `45 súper` → gasto en Comida
+  - `12.50 uber` → gasto en Transporte
+  - `+1500 sueldo` → ingreso (el `+` o palabras como "sueldo" lo marcan como ingreso)
+  - La categoría se detecta sola; toca un chip si quieres cambiarla. "Hoy" cambia la fecha.
+- **Ver:** balance del mes, en qué se va el dinero y la lista de movimientos. Usa ‹ › para otros meses.
+- **Presupuesto (opcional, ⚙):** te dice cuánto te queda y cuánto puedes gastar por día.
+- **Datos:** se guardan en tu navegador. Desde ⚙ puedes exportar a CSV (Excel) o hacer/restaurar una copia de seguridad.
+- **En el celular:** ábrela y elige "Agregar a pantalla de inicio" para usarla como app, también sin conexión.
