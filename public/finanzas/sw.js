@@ -1,5 +1,5 @@
 // Cache the app shell so it opens offline once installed.
-const CACHE = "finanzas-v1"
+const CACHE = "finanzas-v2"
 const FILES = ["./", "index.html", "styles.css", "app.js", "manifest.webmanifest", "icon.svg"]
 
 self.addEventListener("install", (e) => {

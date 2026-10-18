@@ -51,11 +51,11 @@ When you installed Git and cloned the remote repository in week 1, you should ha
 App para registrar gastos e ingresos en segundos. Vive en `public/finanzas/`.
 
 - **Abrir:** con el servidor corriendo (`pnpm run dev`) entra a http://localhost:5500/finanzas/ — o abre `public/finanzas/index.html` directamente en el navegador.
-- **Registrar:** escribe el monto y una palabra, y pulsa Enter.
-  - `45 súper` → gasto en Comida
-  - `12.50 uber` → gasto en Transporte
-  - `+1500 sueldo` → ingreso (el `+` o palabras como "sueldo" lo marcan como ingreso)
-  - La categoría se detecta sola; toca un chip si quieres cambiarla. "Hoy" cambia la fecha.
+- **Registrar:** escribe el monto (se abre el teclado numérico) y toca la categoría: listo, queda guardado.
+  - La nota es opcional; "Hoy" cambia la fecha.
+  - Las categorías marcadas en verde son de ingreso.
+- **Editar:** toca un movimiento para cambiar monto, nota, categoría o fecha, o para eliminarlo.
+- **Categorías (⚙):** cambia ícono y nombre, añade o borra, y marca cada una como gasto o ingreso.
 - **Ver:** balance del mes, en qué se va el dinero y la lista de movimientos. Usa ‹ › para otros meses.
 - **Presupuesto (opcional, ⚙):** te dice cuánto te queda y cuánto puedes gastar por día.
 - **Datos:** se guardan en tu navegador. Desde ⚙ puedes exportar a CSV (Excel) o hacer/restaurar una copia de seguridad.

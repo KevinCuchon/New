@@ -6,41 +6,46 @@ const $ = (s) => document.querySelector(s)
 const KEY = "finanzas.v1"
 
 /* ***********************
-* Categorías y palabras que las detectan solas
+* Categorías por defecto (editables desde Ajustes)
 *************************/
-const CATS = [
-  { id: "comida", label: "Comida", icon: "🍽️", words: ["super", "mercado", "comida", "restaurante", "cafe", "almuerzo", "cena", "desayuno", "pizza", "tacos", "pan", "snack", "uber eats", "rappi", "didi food"] },
-  { id: "transporte", label: "Transporte", icon: "🚗", words: ["uber", "didi", "taxi", "gasolina", "gas", "bus", "metro", "pasaje", "parqueo", "estacionamiento", "peaje"] },
-  { id: "casa", label: "Casa", icon: "🏠", words: ["renta", "alquiler", "luz", "agua", "internet", "telefono", "celular", "cable", "hipoteca"] },
-  { id: "ocio", label: "Ocio", icon: "🎉", words: ["cine", "netflix", "spotify", "bar", "fiesta", "juego", "concierto", "viaje", "cerveza"] },
-  { id: "salud", label: "Salud", icon: "💊", words: ["farmacia", "medico", "doctor", "medicina", "gym", "gimnasio", "dentista", "seguro"] },
-  { id: "compras", label: "Compras", icon: "🛍️", words: ["ropa", "zapatos", "amazon", "regalo", "tienda"] },
-  { id: "otros", label: "Otros", icon: "•", words: [] },
+const DEFAULT_CATS = [
+  { id: "comida", label: "Comida", icon: "🍽️", type: "out" },
+  { id: "transporte", label: "Transporte", icon: "🚗", type: "out" },
+  { id: "casa", label: "Casa", icon: "🏠", type: "out" },
+  { id: "ocio", label: "Ocio", icon: "🎉", type: "out" },
+  { id: "salud", label: "Salud", icon: "💊", type: "out" },
+  { id: "compras", label: "Compras", icon: "🛍️", type: "out" },
+  { id: "otros", label: "Otros", icon: "•", type: "out" },
+  { id: "ingreso", label: "Ingreso", icon: "💰", type: "in" },
 ]
-const INCOME = { id: "ingreso", label: "Ingreso", icon: "💰", words: ["sueldo", "salario", "nomina", "cobro", "venta", "freelance", "bono", "ingreso"] }
-const ALL = [...CATS, INCOME]
-const byId = Object.fromEntries(ALL.map((c) => [c.id, c]))
+const MISSING = { label: "Sin categoría", icon: "•" }
 
 /* ***********************
 * Estado
 *************************/
 let state = load()
 let view = monthKey(today())
-let picked = null // categoría elegida a mano (si no, se detecta)
 let lastDeleted = null
+let editing = null // id del movimiento abierto en el editor
 let toastTimer
+
+function withDefaults(s) {
+  return { tx: [], budget: 0, currency: "USD", ...s, cats: s?.cats?.length ? s.cats : DEFAULT_CATS.map((c) => ({ ...c })) }
+}
 
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY))
-    if (s && Array.isArray(s.tx)) return { budget: 0, currency: "USD", ...s }
+    if (s && Array.isArray(s.tx)) return withDefaults(s)
   } catch {}
-  return { tx: [], budget: 0, currency: "USD" }
+  return withDefaults({})
 }
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)) } catch {}
 }
+
+function cat(id) { return state.cats.find((c) => c.id === id) || MISSING }
 
 /* ***********************
 * Utilidades
@@ -56,19 +61,27 @@ function shiftMonth(key, n) {
   const d = new Date(y, m - 1 + n, 1)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 }
-function normalize(s) { return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") }
-function esc(s) { return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`) }
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`) }
+function newId() { return crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2) }
 
+function formatter(n = 0) {
+  return new Intl.NumberFormat("es-419", { style: "currency", currency: state.currency, currencyDisplay: "narrowSymbol", maximumFractionDigits: n % 1 ? 2 : 0 })
+}
 function money(n, sign = false) {
-  const f = new Intl.NumberFormat("es-419", { style: "currency", currency: state.currency, currencyDisplay: "narrowSymbol", maximumFractionDigits: n % 1 ? 2 : 0 })
-  const s = f.format(Math.abs(n))
+  const s = formatter(n).format(Math.abs(n))
   if (!sign) return n < 0 ? `−${s}` : s
   return (n < 0 ? "−" : "+") + s
+}
+function currencySymbol() {
+  return formatter().formatToParts(0).find((p) => p.type === "currency")?.value ?? "$"
 }
 
 // "1.500,50" / "1,500.50" / "12,5" / "1,500" -> número
 function parseAmount(raw) {
-  let s = raw.replace(/[^\d.,]/g, "")
+  let s = String(raw).replace(/[^\d.,]/g, "")
   const lastDot = s.lastIndexOf("."), lastComma = s.lastIndexOf(",")
   if (lastDot > -1 && lastComma > -1) {
     const dec = lastDot > lastComma ? "." : ","
@@ -82,28 +95,6 @@ function parseAmount(raw) {
   return parseFloat(s)
 }
 
-function detect(note) {
-  const n = normalize(note)
-  if (!n) return null
-  // Primero coincidencias largas ("uber eats" antes que "uber")
-  const hits = ALL.flatMap((c) => c.words.map((w) => ({ c, w }))).filter(({ w }) => new RegExp(`\\b${w}`).test(n))
-  hits.sort((a, b) => b.w.length - a.w.length)
-  return hits[0]?.c.id ?? null
-}
-
-// "45 súper" -> { amount: 45, note: "súper", type: "out", cat: "comida" }
-function parseEntry(text) {
-  const m = text.match(/([+-]?)\s*\$?\s*(\d[\d.,]*)/)
-  if (!m) return null
-  const amount = parseAmount(m[2])
-  if (!amount || amount <= 0) return null
-  const note = (text.slice(0, m.index) + text.slice(m.index + m[0].length)).replace(/\s+/g, " ").trim()
-  const auto = detect(note)
-  const cat = picked ?? auto ?? (m[1] === "+" ? "ingreso" : "otros")
-  const type = m[1] === "+" || cat === "ingreso" ? "in" : "out"
-  return { amount, note, type, cat: type === "in" ? "ingreso" : cat === "ingreso" ? "otros" : cat }
-}
-
 /* ***********************
 * Render
 *************************/
@@ -112,6 +103,7 @@ function render() {
   const label = new Date(y, m - 1, 1).toLocaleDateString("es", { month: "long", year: "numeric" })
   $("#month").textContent = label[0].toUpperCase() + label.slice(1)
   $("#next").disabled = view >= monthKey(today())
+  $("#cur-symbol").textContent = currencySymbol()
 
   const tx = state.tx.filter((t) => monthKey(t.date) === view)
   const income = tx.filter((t) => t.type === "in").reduce((a, t) => a + t.amount, 0)
@@ -123,9 +115,16 @@ function render() {
   $("#income").textContent = money(income, true)
   $("#expense").textContent = money(-expense, true)
 
+  renderChips()
   renderBudget(expense)
   renderCats(tx, expense)
   renderList(tx)
+}
+
+function renderChips() {
+  $("#chips").innerHTML = state.cats.map((c) =>
+    `<button type="button" class="chip ${c.type}" data-cat="${esc(c.id)}">${esc(c.icon)} ${esc(c.label)}</button>`
+  ).join("")
 }
 
 function renderBudget(expense) {
@@ -158,8 +157,8 @@ function renderCats(tx, expense) {
   $("#cats-section").hidden = rows.length === 0
   const max = rows[0]?.[1] || 1
   $("#cats").innerHTML = rows.map(([id, v]) => {
-    const c = byId[id] || byId.otros
-    return `<li><span>${c.icon} ${c.label}</span><span class="amt">${money(v)} · ${Math.round((v / expense) * 100)}%</span>
+    const c = cat(id)
+    return `<li><span>${esc(c.icon)} ${esc(c.label)}</span><span class="amt">${money(v)} · ${Math.round((v / expense) * 100)}%</span>
       <div class="bar"><span style="width:${(v / max) * 100}%"></span></div></li>`
   }).join("")
 }
@@ -173,13 +172,12 @@ function renderList(tx) {
       lastDay = t.date
       html += `<li class="day">${dayLabel(t.date)}</li>`
     }
-    const c = byId[t.cat] || byId.otros
-    html += `<li class="item">
-      <span class="ico">${c.icon}</span>
-      <span class="txt"><b>${esc(t.note || c.label)}</b>${t.note ? `<small>${c.label}</small>` : ""}</span>
+    const c = cat(t.cat)
+    html += `<li><button type="button" class="item" data-id="${esc(t.id)}">
+      <span class="ico">${esc(c.icon)}</span>
+      <span class="txt"><b>${esc(t.note || c.label)}</b>${t.note ? `<small>${esc(c.label)}</small>` : ""}</span>
       <span class="amt ${t.type}">${money(t.type === "in" ? t.amount : -t.amount, true)}</span>
-      <button class="del" data-id="${t.id}" aria-label="Eliminar">×</button>
-    </li>`
+    </button></li>`
   }
   $("#list").innerHTML = html
 }
@@ -192,24 +190,10 @@ function dayLabel(date) {
   if (date === localISO(y)) return "Ayer"
   return new Date(date + "T00:00").toLocaleDateString("es", { weekday: "long", day: "numeric", month: "short" })
 }
-function localISO(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-}
 
 /* ***********************
-* Formulario rápido
+* Registro rápido: monto (teclado numérico) + tocar categoría
 *************************/
-function renderChips() {
-  const entry = $("#entry").value
-  const parsed = entry ? parseEntry(entry) : null
-  const active = picked ?? parsed?.cat ?? null
-  $("#chips").innerHTML = ALL.map((c) =>
-    `<button type="button" class="chip" role="radio" data-cat="${c.id}" aria-checked="${c.id === active}">${c.icon} ${c.label}</button>`
-  ).join("")
-  const on = $('#chips [aria-checked="true"]')
-  if (on) $("#chips").scrollLeft = on.offsetLeft - $("#chips").offsetLeft - 8
-}
-
 function setDate(value) {
   $("#date").value = value
   $("#date-text").textContent = value === today()
@@ -217,45 +201,82 @@ function setDate(value) {
     : new Date(value + "T00:00").toLocaleDateString("es", { day: "numeric", month: "short" })
 }
 
-$("#entry").addEventListener("input", renderChips)
+$("#date").addEventListener("change", (e) => setDate(e.target.value || today()))
 
 $("#chips").addEventListener("click", (e) => {
   const chip = e.target.closest(".chip")
   if (!chip) return
-  picked = picked === chip.dataset.cat ? null : chip.dataset.cat
-  renderChips()
-  $("#entry").focus()
-})
-
-$("#date").addEventListener("change", (e) => setDate(e.target.value || today()))
-
-$("#quick").addEventListener("submit", (e) => {
-  e.preventDefault()
-  const parsed = parseEntry($("#entry").value)
-  if (!parsed) {
-    $("#entry").focus()
-    toast("Escribe un monto, ej. 45 súper")
+  const amount = parseAmount($("#amount").value)
+  if (!amount || amount <= 0) {
+    $("#amount").focus()
+    toast("Primero escribe el monto")
     return
   }
+  const c = cat(chip.dataset.cat)
   const date = $("#date").value || today()
-  state.tx.push({ id: crypto.randomUUID?.() ?? String(Date.now() + Math.random()), ts: Date.now(), date, ...parsed })
+  const tx = { id: newId(), ts: Date.now(), date, amount, note: $("#note").value.trim(), type: c.type, cat: chip.dataset.cat }
+  state.tx.push(tx)
   save()
   view = monthKey(date)
-  $("#entry").value = ""
-  picked = null
+  $("#amount").value = ""
+  $("#note").value = ""
   setDate(today())
-  renderChips()
   render()
-  $("#entry").focus()
+  lastDeleted = null
+  toast(`${c.icon} ${money(c.type === "in" ? amount : -amount, true)} guardado`)
+})
+
+// El teclado de Android sí tiene "Ir": pide elegir categoría.
+$("#quick").addEventListener("submit", (e) => {
+  e.preventDefault()
+  document.activeElement?.blur()
+  toast("Toca una categoría para guardar")
 })
 
 /* ***********************
-* Lista: eliminar con deshacer
+* Editar un movimiento
 *************************/
 $("#list").addEventListener("click", (e) => {
-  const btn = e.target.closest(".del")
-  if (!btn) return
-  const i = state.tx.findIndex((t) => t.id === btn.dataset.id)
+  const item = e.target.closest(".item")
+  if (!item) return
+  const t = state.tx.find((t) => t.id === item.dataset.id)
+  if (!t) return
+  editing = t.id
+  $("#edit-amount").value = String(t.amount).replace(".", ",")
+  $("#edit-note").value = t.note || ""
+  $("#edit-cat").innerHTML = state.cats.map((c) =>
+    `<option value="${esc(c.id)}">${esc(c.icon)} ${esc(c.label)}${c.type === "in" ? " (ingreso)" : ""}</option>`
+  ).join("") + (state.cats.some((c) => c.id === t.cat) ? "" : `<option value="${esc(t.cat)}">${MISSING.label}</option>`)
+  $("#edit-cat").value = t.cat
+  $("#edit-date").value = t.date
+  $("#edit").returnValue = ""
+  $("#edit").showModal()
+})
+
+$("#edit").addEventListener("close", () => {
+  const t = state.tx.find((t) => t.id === editing)
+  editing = null
+  if (!t || $("#edit").returnValue !== "save") return
+  const amount = parseAmount($("#edit-amount").value)
+  if (!amount || amount <= 0) return toast("Monto no válido: no se guardó")
+  const c = state.cats.find((c) => c.id === $("#edit-cat").value)
+  Object.assign(t, {
+    amount,
+    note: $("#edit-note").value.trim(),
+    cat: $("#edit-cat").value,
+    type: c ? c.type : t.type,
+    date: $("#edit-date").value || t.date,
+  })
+  save()
+  render()
+  toast("Cambios guardados")
+})
+
+$("#edit-cancel").addEventListener("click", () => $("#edit").close())
+
+$("#edit-delete").addEventListener("click", () => {
+  const i = state.tx.findIndex((t) => t.id === editing)
+  $("#edit").close()
   if (i < 0) return
   lastDeleted = state.tx.splice(i, 1)[0]
   save()
@@ -268,7 +289,7 @@ function toast(text, undo = false) {
   $("#toast-undo").hidden = !undo
   $("#toast").hidden = false
   clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => ($("#toast").hidden = true), 4000)
+  toastTimer = setTimeout(() => ($("#toast").hidden = true), 3500)
 }
 
 $("#toast-undo").addEventListener("click", () => {
@@ -279,6 +300,18 @@ $("#toast-undo").addEventListener("click", () => {
   $("#toast").hidden = true
 })
 
+// Confirmación dentro de la página.
+function ask(text, ok = "Sí") {
+  return new Promise((resolve) => {
+    const d = $("#confirm")
+    $("#confirm-text").textContent = text
+    $("#confirm-ok").textContent = ok
+    d.returnValue = ""
+    d.addEventListener("close", () => resolve(d.returnValue === "yes"), { once: true })
+    d.showModal()
+  })
+}
+
 /* ***********************
 * Navegación por meses
 *************************/
@@ -286,16 +319,68 @@ $("#prev").addEventListener("click", () => { view = shiftMonth(view, -1); render
 $("#next").addEventListener("click", () => { view = shiftMonth(view, 1); render() })
 
 /* ***********************
-* Ajustes, exportar e importar
+* Ajustes: presupuesto, moneda y categorías
 *************************/
 $("#open-settings").addEventListener("click", () => {
   $("#set-budget").value = state.budget || ""
   $("#set-currency").value = state.currency
+  renderCatEditor()
   $("#settings").showModal()
 })
-$("#set-budget").addEventListener("input", (e) => { state.budget = Math.max(0, parseFloat(e.target.value) || 0); save(); render() })
+$("#set-budget").addEventListener("change", (e) => { state.budget = Math.max(0, parseAmount(e.target.value) || 0); save(); render() })
 $("#set-currency").addEventListener("change", (e) => { state.currency = e.target.value; save(); render() })
 
+function renderCatEditor() {
+  $("#cat-list").innerHTML = state.cats.map((c) => `<li data-id="${esc(c.id)}">
+      <input class="cat-icon" value="${esc(c.icon)}" maxlength="8" aria-label="Ícono">
+      <input class="cat-name" value="${esc(c.label)}" maxlength="24" aria-label="Nombre">
+      <button type="button" class="cat-type ${c.type}" aria-label="Cambiar entre gasto e ingreso">${c.type === "in" ? "Ingreso" : "Gasto"}</button>
+      <button type="button" class="cat-del" aria-label="Borrar categoría">×</button>
+    </li>`).join("")
+}
+
+function catFromRow(el) {
+  const id = el.closest("li").dataset.id
+  return state.cats.find((c) => c.id === id)
+}
+
+$("#cat-list").addEventListener("change", (e) => {
+  const c = catFromRow(e.target)
+  if (!c) return
+  if (e.target.matches(".cat-icon")) c.icon = e.target.value.trim() || "•"
+  if (e.target.matches(".cat-name")) c.label = e.target.value.trim() || c.label
+  save()
+  render()
+})
+
+$("#cat-list").addEventListener("click", async (e) => {
+  const c = catFromRow(e.target)
+  if (!c) return
+  if (e.target.matches(".cat-type")) {
+    c.type = c.type === "in" ? "out" : "in"
+  } else if (e.target.matches(".cat-del")) {
+    if (state.cats.length === 1) return toast("Deja al menos una categoría")
+    const used = state.tx.filter((t) => t.cat === c.id).length
+    if (used && !(await ask(`"${c.label}" tiene ${used} movimiento(s). Quedarán como "Sin categoría". ¿Borrarla?`, "Borrar"))) return
+    state.cats = state.cats.filter((x) => x !== c)
+  } else return
+  save()
+  render()
+  renderCatEditor()
+})
+
+$("#cat-add").addEventListener("click", () => {
+  state.cats.push({ id: newId(), label: "Nueva", icon: "🏷️", type: "out" })
+  save()
+  render()
+  renderCatEditor()
+  const inputs = $("#cat-list").querySelectorAll(".cat-name")
+  inputs[inputs.length - 1].select()
+})
+
+/* ***********************
+* Exportar, importar y borrar
+*************************/
 function download(name, content, type) {
   const a = document.createElement("a")
   a.href = URL.createObjectURL(new Blob([content], { type }))
@@ -307,7 +392,7 @@ function download(name, content, type) {
 $("#export-csv").addEventListener("click", () => {
   const q = (s) => `"${String(s).replace(/"/g, '""')}"`
   const rows = [...state.tx].sort((a, b) => a.date.localeCompare(b.date))
-    .map((t) => [t.date, t.type === "in" ? "Ingreso" : "Gasto", byId[t.cat]?.label ?? t.cat, q(t.note), t.type === "in" ? t.amount : -t.amount].join(","))
+    .map((t) => [t.date, t.type === "in" ? "Ingreso" : "Gasto", q(cat(t.cat).label), q(t.note), t.type === "in" ? t.amount : -t.amount].join(","))
   download(`finanzas-${today()}.csv`, "﻿Fecha,Tipo,Categoría,Nota,Monto\n" + rows.join("\n"), "text/csv")
 })
 
@@ -323,8 +408,8 @@ $("#import-file").addEventListener("change", async (e) => {
   try {
     const data = JSON.parse(await file.text())
     if (!Array.isArray(data.tx)) throw new Error()
-    if (!confirm(`¿Reemplazar tus datos por la copia (${data.tx.length} movimientos)?`)) return
-    state = { budget: 0, currency: "USD", ...data }
+    if (!(await ask(`¿Reemplazar tus datos por la copia (${data.tx.length} movimientos)?`, "Reemplazar"))) return
+    state = withDefaults(data)
     save()
     $("#settings").close()
     render()
@@ -334,9 +419,9 @@ $("#import-file").addEventListener("change", async (e) => {
   }
 })
 
-$("#wipe").addEventListener("click", () => {
-  if (!confirm("¿Borrar todos los movimientos? No se puede deshacer.")) return
-  state = { tx: [], budget: state.budget, currency: state.currency }
+$("#wipe").addEventListener("click", async () => {
+  if (!(await ask("¿Borrar todos los movimientos? No se puede deshacer.", "Borrar todo"))) return
+  state = { ...state, tx: [] }
   save()
   $("#settings").close()
   render()
@@ -346,7 +431,6 @@ $("#wipe").addEventListener("click", () => {
 * Inicio
 *************************/
 setDate(today())
-renderChips()
 render()
 
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

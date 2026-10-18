@@ -31,15 +31,17 @@
 
     <form class="quick" id="quick" autocomplete="off">
       <div class="row">
-        <input id="entry" type="text" inputmode="text" enterkeyhint="done"
-               placeholder="45 súper   ·   +1500 sueldo" aria-label="Nuevo movimiento">
+        <span class="cur" id="cur-symbol">$</span>
+        <input id="amount" type="text" inputmode="decimal" pattern="[0-9.,]*" enterkeyhint="done"
+               placeholder="0" aria-label="Monto">
         <label class="date">
           <span id="date-text">Hoy</span>
           <input id="date" type="date" aria-label="Fecha">
         </label>
-        <button class="add" type="submit" aria-label="Guardar">+</button>
       </div>
-      <div class="chips" id="chips" role="radiogroup" aria-label="Categoría"></div>
+      <input id="note" type="text" enterkeyhint="done" maxlength="60" placeholder="Nota (opcional)" aria-label="Nota">
+      <p class="hint">Toca una categoría para guardar</p>
+      <div class="chips" id="chips"></div>
     </form>
 
     <section id="cats-section" hidden>
@@ -50,7 +52,7 @@
     <section>
       <h2>Movimientos</h2>
       <ul class="list" id="list"></ul>
-      <p class="empty" id="empty">Escribe un monto y pulsa Enter. Usa <b>+</b> para ingresos.</p>
+      <p class="empty" id="empty">Escribe un monto y toca una categoría. Toca un movimiento para editarlo.</p>
     </section>
   </main>
 
@@ -59,11 +61,34 @@
     <button id="toast-undo" type="button">Deshacer</button>
   </div>
 
+  <dialog id="edit">
+    <form method="dialog" class="settings">
+      <h2>Editar movimiento</h2>
+      <label>Monto
+        <input id="edit-amount" type="text" inputmode="decimal" pattern="[0-9.,]*">
+      </label>
+      <label>Nota
+        <input id="edit-note" type="text" maxlength="60" placeholder="Opcional">
+      </label>
+      <label>Categoría
+        <select id="edit-cat"></select>
+      </label>
+      <label>Fecha
+        <input id="edit-date" type="date">
+      </label>
+      <div class="actions">
+        <button type="button" id="edit-delete" class="danger">Eliminar</button>
+        <button type="button" id="edit-cancel">Cancelar</button>
+      </div>
+      <button class="primary" value="save">Guardar</button>
+    </form>
+  </dialog>
+
   <dialog id="settings">
     <form method="dialog" class="settings">
       <h2>Ajustes</h2>
       <label>Presupuesto mensual de gastos
-        <input id="set-budget" type="number" min="0" step="any" inputmode="decimal" placeholder="Ej. 800">
+        <input id="set-budget" type="text" inputmode="decimal" pattern="[0-9.,]*" placeholder="Ej. 800">
       </label>
       <label>Moneda
         <select id="set-currency">
@@ -72,6 +97,11 @@
           <option>DOP</option><option>CRC</option><option>BOB</option><option>UYU</option>
         </select>
       </label>
+      <div class="cat-edit">
+        <p class="field">Categorías <small>· toca para cambiar ícono, nombre o tipo</small></p>
+        <ul id="cat-list"></ul>
+        <button type="button" id="cat-add">+ Añadir categoría</button>
+      </div>
       <div class="actions">
         <button type="button" id="export-csv">Exportar CSV</button>
         <button type="button" id="export-json">Copia de seguridad</button>
@@ -80,6 +110,16 @@
       </div>
       <input id="import-file" type="file" accept="application/json,.json" hidden>
       <button class="primary" value="close">Listo</button>
+    </form>
+  </dialog>
+
+  <dialog id="confirm">
+    <form method="dialog" class="confirm">
+      <p id="confirm-text"></p>
+      <div class="btns">
+        <button value="no">Cancelar</button>
+        <button value="yes" class="danger-fill" id="confirm-ok">Sí</button>
+      </div>
     </form>
   </dialog>
 
